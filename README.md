@@ -2,6 +2,37 @@
 
 ELF binary analysis and library dependency copying utilities. Uses `readelf` for cross-compilation safe dependency detection (unlike `ldd` which executes binaries).
 
+## Status
+
+| Metric | Value |
+|--------|-------|
+| Stage | Beta |
+| Target | x86_64 Linux |
+| Last verified | 2026-01-23 |
+
+### Works
+
+- Dependency analysis via readelf -d
+- Recursive transitive dependency resolution
+- Library copying with path preservation
+- Binary search in standard Linux paths
+
+### Known Issues
+
+- See parent repo issues
+
+---
+
+## Author
+
+<!-- HUMAN WRITTEN - DO NOT MODIFY -->
+
+[Waiting for human input]
+
+<!-- END HUMAN WRITTEN -->
+
+---
+
 ## Features
 
 - **Dependency Analysis**: Parse `readelf -d` output to find shared library dependencies
