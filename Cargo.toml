@@ -1,0 +1,14 @@
+[package]
+name = "leviso-elf"
+version = "0.1.0"
+edition = "2021"
+description = "ELF binary analysis and library dependency copying utilities using readelf"
+license = "MIT"
+repository = "https://github.com/LevitateOS/leviso-elf"
+homepage = "https://github.com/LevitateOS/leviso-elf"
+keywords = ["elf", "binary", "library", "dependency", "readelf"]
+categories = ["development-tools::build-utils", "filesystem"]
+readme = "README.md"
+
+[dependencies]
+anyhow = "1.0"
