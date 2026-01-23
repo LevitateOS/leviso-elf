@@ -2,7 +2,7 @@
 name = "leviso-elf"
 version = "0.1.1"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.83"
 description = "ELF binary analysis and library dependency copying utilities using readelf"
 license = "MIT"
 repository = "https://github.com/LevitateOS/leviso-elf"
