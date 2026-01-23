@@ -24,7 +24,9 @@ pub fn find_library(source_root: &Path, lib_name: &str, extra_paths: &[&str]) ->
         candidates.push(source_root.join(extra).join(lib_name));
     }
 
-    candidates.into_iter().find(|p| p.exists() || p.is_symlink())
+    candidates
+        .into_iter()
+        .find(|p| p.exists() || p.is_symlink())
 }
 
 /// Find a binary in standard bin/sbin directories.

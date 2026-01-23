@@ -133,7 +133,12 @@ pub fn create_symlink_if_missing(target: &Path, link: &Path) -> Result<bool> {
     if link.exists() || link.is_symlink() {
         return Ok(false);
     }
-    std::os::unix::fs::symlink(target, link)
-        .with_context(|| format!("Failed to create symlink {} -> {}", link.display(), target.display()))?;
+    std::os::unix::fs::symlink(target, link).with_context(|| {
+        format!(
+            "Failed to create symlink {} -> {}",
+            link.display(),
+            target.display()
+        )
+    })?;
     Ok(true)
 }
