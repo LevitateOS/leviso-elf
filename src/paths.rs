@@ -7,6 +7,9 @@ use std::path::{Path, PathBuf};
 /// Searches lib64, lib, and systemd private library paths.
 /// The `extra_paths` parameter allows callers to add additional search paths
 /// (e.g., `/usr/libexec/sudo` for rootfs builds).
+///
+/// Returns `None` if the library is not found in any search path.
+#[must_use = "found library path should be used"]
 pub fn find_library(source_root: &Path, lib_name: &str, extra_paths: &[&str]) -> Option<PathBuf> {
     // Standard library paths
     let mut candidates = vec![
@@ -30,6 +33,9 @@ pub fn find_library(source_root: &Path, lib_name: &str, extra_paths: &[&str]) ->
 }
 
 /// Find a binary in standard bin/sbin directories.
+///
+/// Returns `None` if the binary is not found in any search path.
+#[must_use = "found binary path should be used"]
 pub fn find_binary(source_root: &Path, binary: &str) -> Option<PathBuf> {
     let bin_candidates = [
         source_root.join("usr/bin").join(binary),
@@ -42,6 +48,9 @@ pub fn find_binary(source_root: &Path, binary: &str) -> Option<PathBuf> {
 }
 
 /// Find a binary, prioritizing sbin directories.
+///
+/// Returns `None` if the binary is not found in any search path.
+#[must_use = "found binary path should be used"]
 pub fn find_sbin_binary(source_root: &Path, binary: &str) -> Option<PathBuf> {
     let sbin_candidates = [
         source_root.join("usr/sbin").join(binary),

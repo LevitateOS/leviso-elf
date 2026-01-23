@@ -1,6 +1,6 @@
 //! ELF binary analysis using readelf.
 
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
@@ -11,20 +11,42 @@ use crate::paths::find_library;
 ///
 /// This is architecture-independent - readelf reads the ELF headers directly
 /// without executing the binary, unlike ldd which uses the host dynamic linker.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The file does not exist
+/// - `readelf` is not installed (install binutils)
+/// - `readelf` fails for reasons other than "not an ELF file"
+///
+/// Returns `Ok(Vec::new())` if the file is not an ELF binary (e.g., a text file).
+#[must_use = "library dependencies should be processed"]
 pub fn get_library_dependencies(binary_path: &Path) -> Result<Vec<String>> {
+    // Check file exists first for a clear error message
+    if !binary_path.exists() {
+        bail!("File does not exist: {}", binary_path.display());
+    }
+
     let output = Command::new("readelf")
         .args(["-d"])
         .arg(binary_path)
-        .output();
-
-    let output = match output {
-        Ok(o) => o,
-        Err(_) => return Ok(Vec::new()), // readelf not found or failed
-    };
+        .output()
+        .context("readelf command not found - install binutils")?;
 
     if !output.status.success() {
-        // Not an ELF binary or readelf failed - return empty list
-        return Ok(Vec::new());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // These are legitimate "not an ELF" cases, not errors
+        if stderr.contains("Not an ELF file")
+            || stderr.contains("not a dynamic executable")
+            || stderr.contains("File format not recognized")
+        {
+            return Ok(Vec::new());
+        }
+        bail!(
+            "readelf failed on {}: {}",
+            binary_path.display(),
+            stderr.trim()
+        );
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);

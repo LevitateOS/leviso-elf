@@ -129,6 +129,7 @@ pub fn copy_library_to(
 ///
 /// Returns `Ok(true)` if the symlink was created, `Ok(false)` if it already existed.
 /// This is useful for idempotent symlink creation (e.g., enabling systemd services).
+#[must_use = "return value indicates whether symlink was created"]
 pub fn create_symlink_if_missing(target: &Path, link: &Path) -> Result<bool> {
     if link.exists() || link.is_symlink() {
         return Ok(false);
