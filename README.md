@@ -43,16 +43,36 @@ ELF binary analysis and library dependency copying utilities. Uses `readelf` for
 ## Usage
 
 ```rust
-use leviso_elf::{get_all_dependencies, copy_library_to, find_binary};
+use leviso_elf::{get_all_dependencies, copy_library_to, find_binary, find_library};
+use std::path::Path;
 
-// Find all library dependencies for a binary
-let deps = get_all_dependencies("/usr/bin/bash", &["/lib64", "/usr/lib64"])?;
+let source_root = Path::new("/path/to/source/rootfs");
+let dest_root = Path::new("/path/to/dest/rootfs");
 
-// Copy a library to target directory
-copy_library_to("/lib64/libc.so.6", &target_dir)?;
+// Find all library dependencies for a binary (recursive)
+let binary_path = source_root.join("usr/bin/bash");
+let deps = get_all_dependencies(source_root, &binary_path, &["usr/libexec/sudo"])?;
+
+// Copy a library to target directory with configurable paths
+copy_library_to(
+    source_root,
+    "libc.so.6",
+    dest_root,
+    "usr/lib64",           // dest lib64 path
+    "usr/lib",             // dest lib path
+    &["usr/libexec/sudo"], // extra search paths
+    &["systemd"],          // private lib dirs (use &[] for musl/OpenRC)
+)?;
 
 // Find a binary in standard paths
-let path = find_binary("bash", &source_rootfs)?;
+if let Some(path) = find_binary(source_root, "bash") {
+    println!("Found bash at: {}", path.display());
+}
+
+// Find a library with extra search paths
+if let Some(path) = find_library(source_root, "libpam.so.0", &[]) {
+    println!("Found libpam at: {}", path.display());
+}
 ```
 
 ## Why readelf instead of ldd?

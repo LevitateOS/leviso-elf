@@ -57,6 +57,10 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<u64> {
 ///
 /// The `dest_lib64_path` and `dest_lib_path` parameters specify where
 /// libraries should be copied (e.g., "lib64" for initramfs, "usr/lib64" for rootfs).
+///
+/// The `private_lib_dirs` parameter specifies subdirectories that should preserve
+/// their structure (e.g., `&["systemd"]` for LevitateOS, `&["openrc"]` for AcornOS,
+/// or `&[]` if no private library directories are needed).
 pub fn copy_library_to(
     source_root: &Path,
     lib_name: &str,
@@ -64,23 +68,27 @@ pub fn copy_library_to(
     dest_lib64_path: &str,
     dest_lib_path: &str,
     extra_lib_paths: &[&str],
+    private_lib_dirs: &[&str],
 ) -> Result<()> {
     let src = find_library(source_root, lib_name, extra_lib_paths).with_context(|| {
         format!(
-            "Could not find library '{}' in source (searched lib64, lib, systemd paths)",
+            "Could not find library '{}' in source (searched lib64, lib, extra paths)",
             lib_name
         )
     })?;
 
-    // Check if this is a systemd private library
-    let dest_path = if src.to_string_lossy().contains("lib64/systemd")
-        || src.to_string_lossy().contains("lib/systemd")
-    {
-        // Systemd private libraries stay in their own directory
-        let dest_dir = dest_root.join(dest_lib64_path).join("systemd");
+    // Check if this is a private library (e.g., systemd, openrc)
+    let src_str = src.to_string_lossy();
+    let private_dir = private_lib_dirs.iter().find(|dir| {
+        src_str.contains(&format!("lib64/{}", dir)) || src_str.contains(&format!("lib/{}", dir))
+    });
+
+    let dest_path = if let Some(dir) = private_dir {
+        // Private libraries stay in their own subdirectory
+        let dest_dir = dest_root.join(dest_lib64_path).join(dir);
         fs::create_dir_all(&dest_dir)?;
         dest_dir.join(lib_name)
-    } else if src.to_string_lossy().contains("lib64") {
+    } else if src_str.contains("lib64") {
         dest_root.join(dest_lib64_path).join(lib_name)
     } else {
         dest_root.join(dest_lib_path).join(lib_name)
