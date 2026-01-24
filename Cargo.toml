@@ -1,6 +1,6 @@
 [package]
 name = "leviso-elf"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 rust-version = "1.93"
 description = "ELF binary analysis and library dependency copying utilities using readelf"
