@@ -13,3 +13,6 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
+
+[dev-dependencies]
+leviso-cheat-test = { path = "../testing/cheat-test" }

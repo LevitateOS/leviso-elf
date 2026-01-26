@@ -1,8 +1,18 @@
 //! Integration tests for leviso-elf using real system binaries.
 
+use leviso_cheat_test::cheat_aware;
 use leviso_elf::get_library_dependencies;
 use std::path::Path;
 
+#[cheat_aware(
+    protects = "ELF library detection finds actual runtime dependencies",
+    severity = "HIGH",
+    ease = "MEDIUM",
+    cheats = ["Return empty list for all binaries", "Hardcode common libs instead of parsing"],
+    consequence = "Missing libraries in initramfs/rootfs, binaries crash with 'not found' at runtime",
+    legitimate_change = "Library detection must use readelf or equivalent to find real dependencies. \
+        If detection method changes, verify it still finds libc for /bin/sh."
+)]
 #[test]
 fn test_get_deps_of_real_binary() {
     // /bin/sh exists on all Linux systems and is dynamically linked
@@ -15,6 +25,14 @@ fn test_get_deps_of_real_binary() {
     );
 }
 
+#[cheat_aware(
+    protects = "Nonexistent binary produces clear error, not empty deps",
+    severity = "HIGH",
+    ease = "EASY",
+    cheats = ["Return empty Vec for missing files", "Silently ignore file errors"],
+    consequence = "Build silently skips missing binaries, user gets incomplete rootfs",
+    legitimate_change = "Missing files must fail loudly. Empty deps is reserved for non-ELF files."
+)]
 #[test]
 fn test_nonexistent_binary() {
     let result = get_library_dependencies(Path::new("/nonexistent/path/to/binary"));
