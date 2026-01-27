@@ -20,8 +20,26 @@ pub fn make_executable(path: &Path) -> Result<()> {
 
 /// Copy a directory recursively, handling symlinks.
 ///
+/// Skips existing symlinks (additive copy). Use [`copy_dir_recursive_overwrite`]
+/// if you need to replace existing files.
+///
 /// Returns the total size in bytes of all files copied.
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<u64> {
+    copy_dir_recursive_impl(src, dst, false)
+}
+
+/// Copy a directory recursively, overwriting existing files and symlinks.
+///
+/// Unlike [`copy_dir_recursive`], this will remove and replace existing symlinks.
+/// Useful for overlay creation where you want to replace the destination contents.
+///
+/// Returns the total size in bytes of all files copied.
+pub fn copy_dir_recursive_overwrite(src: &Path, dst: &Path) -> Result<u64> {
+    copy_dir_recursive_impl(src, dst, true)
+}
+
+/// Internal implementation for recursive directory copy.
+fn copy_dir_recursive_impl(src: &Path, dst: &Path, overwrite: bool) -> Result<u64> {
     let mut total_size: u64 = 0;
 
     if !src.is_dir() {
@@ -36,9 +54,12 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<u64> {
         let dest_path = dst.join(entry.file_name());
 
         if path.is_dir() {
-            total_size += copy_dir_recursive(&path, &dest_path)?;
+            total_size += copy_dir_recursive_impl(&path, &dest_path, overwrite)?;
         } else if path.is_symlink() {
             let target = fs::read_link(&path)?;
+            if overwrite && (dest_path.exists() || dest_path.is_symlink()) {
+                fs::remove_file(&dest_path)?;
+            }
             if !dest_path.exists() && !dest_path.is_symlink() {
                 std::os::unix::fs::symlink(&target, &dest_path)?;
             }
@@ -210,5 +231,51 @@ mod tests {
         // Second call should not recreate
         let created = create_symlink_if_missing(&target, &link).unwrap();
         assert!(!created, "Second call should not recreate symlink");
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_skips_existing_symlinks() {
+        let temp = TempDir::new().unwrap();
+        let base = temp.path();
+
+        // Create source with a symlink
+        let src = base.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(src.join("file.txt"), "content").unwrap();
+        std::os::unix::fs::symlink("file.txt", src.join("link")).unwrap();
+
+        // Create destination with an existing symlink pointing elsewhere
+        let dst = base.join("dst");
+        fs::create_dir_all(&dst).unwrap();
+        std::os::unix::fs::symlink("other.txt", dst.join("link")).unwrap();
+
+        // copy_dir_recursive should skip the existing symlink
+        copy_dir_recursive(&src, &dst).unwrap();
+
+        // The symlink should still point to "other.txt" (not overwritten)
+        assert_eq!(fs::read_link(dst.join("link")).unwrap().to_str().unwrap(), "other.txt");
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_overwrite_replaces_symlinks() {
+        let temp = TempDir::new().unwrap();
+        let base = temp.path();
+
+        // Create source with a symlink
+        let src = base.join("src");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(src.join("file.txt"), "content").unwrap();
+        std::os::unix::fs::symlink("file.txt", src.join("link")).unwrap();
+
+        // Create destination with an existing symlink pointing elsewhere
+        let dst = base.join("dst");
+        fs::create_dir_all(&dst).unwrap();
+        std::os::unix::fs::symlink("other.txt", dst.join("link")).unwrap();
+
+        // copy_dir_recursive_overwrite should replace the symlink
+        copy_dir_recursive_overwrite(&src, &dst).unwrap();
+
+        // The symlink should now point to "file.txt" (was overwritten)
+        assert_eq!(fs::read_link(dst.join("link")).unwrap().to_str().unwrap(), "file.txt");
     }
 }

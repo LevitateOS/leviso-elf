@@ -9,5 +9,8 @@ mod copy;
 mod paths;
 
 pub use analyze::{get_all_dependencies, get_library_dependencies, parse_readelf_output};
-pub use copy::{copy_dir_recursive, copy_library_to, create_symlink_if_missing, make_executable};
+pub use copy::{
+    copy_dir_recursive, copy_dir_recursive_overwrite, copy_library_to, create_symlink_if_missing,
+    make_executable,
+};
 pub use paths::{find_binary, find_library, find_sbin_binary};
