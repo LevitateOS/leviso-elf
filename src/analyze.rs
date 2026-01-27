@@ -35,10 +35,14 @@ pub fn get_library_dependencies(binary_path: &Path) -> Result<Vec<String>> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        // These are legitimate "not an ELF" cases, not errors
+        // These are legitimate "not an ELF" or permission cases, not fatal errors
+        // For unreadable files (like setuid binaries), we return empty deps and
+        // let the caller copy the binary without library analysis
         if stderr.contains("Not an ELF file")
             || stderr.contains("not a dynamic executable")
             || stderr.contains("File format not recognized")
+            || stderr.contains("Failed to read file header")
+            || stderr.contains("is not readable")
         {
             return Ok(Vec::new());
         }
