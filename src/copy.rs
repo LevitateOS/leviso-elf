@@ -151,3 +151,64 @@ pub fn create_symlink_if_missing(target: &Path, link: &Path) -> Result<bool> {
     })?;
     Ok(true)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_copy_dir_recursive() {
+        let temp = TempDir::new().unwrap();
+        let base = temp.path();
+
+        // Create source directory structure
+        let src = base.join("src_dir");
+        fs::create_dir_all(src.join("subdir")).unwrap();
+        fs::write(src.join("file1.txt"), "content1").unwrap();
+        fs::write(src.join("subdir/file2.txt"), "content2").unwrap();
+
+        // Copy to destination
+        let dst = base.join("dst_dir");
+        copy_dir_recursive(&src, &dst).expect("copy_dir_recursive should succeed");
+
+        // Verify structure
+        assert!(dst.join("file1.txt").exists());
+        assert!(dst.join("subdir/file2.txt").exists());
+        assert_eq!(fs::read_to_string(dst.join("file1.txt")).unwrap(), "content1");
+        assert_eq!(fs::read_to_string(dst.join("subdir/file2.txt")).unwrap(), "content2");
+    }
+
+    #[test]
+    fn test_make_executable() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("test_exec");
+        fs::write(&file_path, "test").unwrap();
+
+        make_executable(&file_path).expect("make_executable should succeed");
+
+        let metadata = fs::metadata(&file_path).unwrap();
+        let mode = metadata.permissions().mode();
+
+        // Check executable bits (755 = rwxr-xr-x)
+        assert_eq!(mode & 0o111, 0o111, "File should be executable");
+    }
+
+    #[test]
+    fn test_create_symlink_if_missing() {
+        let temp = TempDir::new().unwrap();
+        let base = temp.path();
+
+        let target = base.join("target");
+        let link = base.join("link");
+
+        // First call should create symlink
+        let created = create_symlink_if_missing(&target, &link).unwrap();
+        assert!(created, "First call should create symlink");
+        assert!(link.is_symlink());
+
+        // Second call should not recreate
+        let created = create_symlink_if_missing(&target, &link).unwrap();
+        assert!(!created, "Second call should not recreate symlink");
+    }
+}

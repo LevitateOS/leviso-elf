@@ -132,8 +132,35 @@ Dynamic section at offset 0x2d0e0 contains 28 entries:
     }
 
     #[test]
+    fn test_parse_readelf_multiple_needed() {
+        let output = r#"
+ 0x0000000000000001 (NEEDED)             Shared library: [libm.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libdl.so.2]
+"#;
+        let libs = parse_readelf_output(output).unwrap();
+        assert!(libs.contains(&"libm.so.6".to_string()));
+        assert!(libs.contains(&"libc.so.6".to_string()));
+        assert!(libs.contains(&"libdl.so.2".to_string()));
+        assert_eq!(libs.len(), 3);
+    }
+
+    #[test]
     fn test_parse_readelf_empty() {
-        let output = "not an ELF file";
+        let output = "";
+        let libs = parse_readelf_output(output).unwrap();
+        assert!(libs.is_empty());
+    }
+
+    #[test]
+    fn test_parse_readelf_no_needed_entries() {
+        // readelf output for a static binary has no NEEDED entries
+        let output = r#"
+Dynamic section at offset 0x2f50 contains 10 entries:
+  Tag        Type                         Name/Value
+ 0x000000000000000c (INIT)               0x1000
+ 0x000000000000000d (FINI)               0x2000
+"#;
         let libs = parse_readelf_output(output).unwrap();
         assert!(libs.is_empty());
     }
