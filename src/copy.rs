@@ -196,8 +196,14 @@ mod tests {
         // Verify structure
         assert!(dst.join("file1.txt").exists());
         assert!(dst.join("subdir/file2.txt").exists());
-        assert_eq!(fs::read_to_string(dst.join("file1.txt")).unwrap(), "content1");
-        assert_eq!(fs::read_to_string(dst.join("subdir/file2.txt")).unwrap(), "content2");
+        assert_eq!(
+            fs::read_to_string(dst.join("file1.txt")).unwrap(),
+            "content1"
+        );
+        assert_eq!(
+            fs::read_to_string(dst.join("subdir/file2.txt")).unwrap(),
+            "content2"
+        );
     }
 
     #[test]
@@ -253,7 +259,10 @@ mod tests {
         copy_dir_recursive(&src, &dst).unwrap();
 
         // The symlink should still point to "other.txt" (not overwritten)
-        assert_eq!(fs::read_link(dst.join("link")).unwrap().to_str().unwrap(), "other.txt");
+        assert_eq!(
+            fs::read_link(dst.join("link")).unwrap().to_str().unwrap(),
+            "other.txt"
+        );
     }
 
     #[test]
@@ -276,6 +285,9 @@ mod tests {
         copy_dir_recursive_overwrite(&src, &dst).unwrap();
 
         // The symlink should now point to "file.txt" (was overwritten)
-        assert_eq!(fs::read_link(dst.join("link")).unwrap().to_str().unwrap(), "file.txt");
+        assert_eq!(
+            fs::read_link(dst.join("link")).unwrap().to_str().unwrap(),
+            "file.txt"
+        );
     }
 }
