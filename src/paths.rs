@@ -44,7 +44,9 @@ pub fn find_binary(source_root: &Path, binary: &str) -> Option<PathBuf> {
         source_root.join("sbin").join(binary),
     ];
 
-    bin_candidates.into_iter().find(|p| p.exists())
+    bin_candidates
+        .into_iter()
+        .find(|p| p.symlink_metadata().is_ok())
 }
 
 /// Find a binary, prioritizing sbin directories.
@@ -59,7 +61,9 @@ pub fn find_sbin_binary(source_root: &Path, binary: &str) -> Option<PathBuf> {
         source_root.join("bin").join(binary),
     ];
 
-    sbin_candidates.into_iter().find(|p| p.exists())
+    sbin_candidates
+        .into_iter()
+        .find(|p| p.symlink_metadata().is_ok())
 }
 
 #[cfg(test)]
