@@ -18,27 +18,21 @@ pub fn make_executable(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Copy a directory recursively, handling symlinks.
-///
-/// Skips existing symlinks (additive copy). Use [`copy_dir_recursive_overwrite`]
-/// if you need to replace existing files.
-///
-/// Returns the total size in bytes of all files copied.
+/// Copy a directory tree into `dst` and return the bytes of regular files
+/// copied. Symlinks to directories are followed; other symlinks are recreated
+/// unless something already exists at the destination (see
+/// [`copy_dir_recursive_overwrite`]). Regular files are always overwritten. A
+/// `src` that is not a directory copies nothing.
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<u64> {
     copy_dir_recursive_impl(src, dst, false)
 }
 
-/// Copy a directory recursively, overwriting existing files and symlinks.
-///
-/// Unlike [`copy_dir_recursive`], this will remove and replace existing symlinks.
-/// Useful for overlay creation where you want to replace the destination contents.
-///
-/// Returns the total size in bytes of all files copied.
+/// Like [`copy_dir_recursive`], but a symlink replaces whatever file or link
+/// already exists at its destination.
 pub fn copy_dir_recursive_overwrite(src: &Path, dst: &Path) -> Result<u64> {
     copy_dir_recursive_impl(src, dst, true)
 }
 
-/// Internal implementation for recursive directory copy.
 fn copy_dir_recursive_impl(src: &Path, dst: &Path, overwrite: bool) -> Result<u64> {
     let mut total_size: u64 = 0;
 
@@ -74,14 +68,13 @@ fn copy_dir_recursive_impl(src: &Path, dst: &Path, overwrite: bool) -> Result<u6
     Ok(total_size)
 }
 
-/// Copy a library from source to destination, handling symlinks.
-///
-/// The `dest_lib64_path` and `dest_lib_path` parameters specify where
-/// libraries should be copied (e.g., "lib64" for initramfs, "usr/lib64" for rootfs).
-///
-/// The `private_lib_dirs` parameter specifies subdirectories that should preserve
-/// their structure (e.g., `&["systemd"]` for LevitateOS, `&["openrc"]` for AcornOS,
-/// or `&[]` if no private library directories are needed).
+/// Copy library `lib_name`, found under `source_root` by [`find_library`]
+/// (which also searches `extra_lib_paths`), to `dest_lib64_path` or
+/// `dest_lib_path` under `dest_root`, by whether it was found in a lib64
+/// directory. A library under one of `private_lib_dirs` (e.g. `systemd`) keeps
+/// that subdirectory, under `dest_lib64_path`. A symlinked library is copied
+/// as its target file plus the link. Does nothing when the destination
+/// already exists.
 pub fn copy_library_to(
     source_root: &Path,
     lib_name: &str,
@@ -98,14 +91,12 @@ pub fn copy_library_to(
         )
     })?;
 
-    // Check if this is a private library (e.g., systemd, openrc)
     let src_str = src.to_string_lossy();
     let private_dir = private_lib_dirs.iter().find(|dir| {
         src_str.contains(&format!("lib64/{}", dir)) || src_str.contains(&format!("lib/{}", dir))
     });
 
     let dest_path = if let Some(dir) = private_dir {
-        // Private libraries stay in their own subdirectory
         let dest_dir = dest_root.join(dest_lib64_path).join(dir);
         fs::create_dir_all(&dest_dir)?;
         dest_dir.join(lib_name)
@@ -116,14 +107,13 @@ pub fn copy_library_to(
     };
 
     if dest_path.exists() {
-        return Ok(()); // Already copied
+        return Ok(());
     }
 
-    // Handle symlinks - copy both the symlink target and create the symlink
     if src.is_symlink() {
         let link_target = fs::read_link(&src)?;
 
-        // Resolve the actual file
+        // An absolute link target is inside source_root, not on the host.
         let actual_src = if link_target.is_relative() {
             src.parent()
                 .context("Library path has no parent")?
@@ -133,18 +123,17 @@ pub fn copy_library_to(
         };
 
         if actual_src.exists() {
-            // Copy the actual file first
             let target_name = link_target.file_name().unwrap_or(link_target.as_os_str());
             let target_dest = dest_path.parent().unwrap().join(target_name);
             if !target_dest.exists() {
                 fs::copy(&actual_src, &target_dest)?;
             }
-            // Create symlink
             if !dest_path.exists() {
                 std::os::unix::fs::symlink(&link_target, &dest_path)?;
             }
         } else {
-            // Symlink target not found, copy the symlink itself
+            // Target not under source_root: fs::copy follows the link as the
+            // host resolves it, and fails if it dangles.
             fs::copy(&src, &dest_path)?;
         }
     } else {
